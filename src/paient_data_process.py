@@ -1,23 +1,17 @@
 from pyspark.sql import *
 from pyspark.sql.functions import *
-from pyspark.sql.types import MapType, StringType
+from pyspark.sql.types import *
 
 
 def convert_name(array_str):
     name = {}
     for item in array_str:
         if item['use'] == 'usual':
-            name['usual_name'] = item['family'] + " " + item['given'][0] + " " + item['given'][1] if len(
-                item['given']) > 1 else \
-                item['given'][0]
+            name['usual_name'] = item.asDict(True)
         elif item['use'] == 'official':
-            name['official_name'] = item['family'] + " " + item['given'][0] + " " + item['given'][1] if len(
-                item['given']) > 1 else \
-                item['given'][0]
+            name['official_name'] = item.asDict(True)
         elif item['use'] == 'maiden':
-            name['maiden_name'] = item['family'] + " " + item['given'][0] + " " + item['given'][1] if len(
-                item['given']) > 1 else \
-                item['given'][0]
+            name['maiden_name'] = item.asDict(True)
     return name
 
 
@@ -29,22 +23,30 @@ def read_data(spark):
 
 
 def transform_name(df):
+    schema = StructType([
+        StructField('family', StringType(), True),
+        StructField('given', ArrayType(StringType(), True)),
+        StructField('period', StructType([StructField('end', StringType())]), True),
+        StructField('use', StringType(), True)
+    ])
 
-    convertUDF = udf(lambda z: convert_name(z), MapType(StringType(), StringType()))
+    convertUDF = udf(lambda z: convert_name(z), MapType(StringType(), schema))
 
-    return df.select(col('birthdate'), col('gender'), convertUDF(col("name")).alias("newName")) \
-        .withColumn('maiden_name', col('newName').getItem('maiden_name')) \
-        .withColumn('usual_name', col('newName').getItem('usual_name')) \
-        .withColumn('official_name', col('newName').getItem('official_name'))
+    return df.select(col('id'),col('birthdate'), col('gender'), convertUDF(col("name")).alias("newName"))\
+        .withColumn('maiden_name', to_json(col('newName').getItem('maiden_name'))) \
+        .withColumn('usual_name', to_json(col('newName').getItem('usual_name'))) \
+        .withColumn('official_name', to_json(col('newName').getItem('official_name'))).drop("newName")
 
 
 def transform_address(df):
-    return df.select(explode('address').alias('new_address')) \
-        .withColumn('use', col('new_address').use) \
-        .withColumn('type', col('new_address').type) \
+    return df.select(col('id'), explode('address').alias('new_address')) \
+        .withColumn('use_add', col('new_address').use) \
+        .withColumn('type_add', col('new_address').type) \
         .withColumn('city', col('new_address').city) \
         .withColumn('district', col('new_address').district) \
-        .withColumn('state', col('new_address').state).withColumn('postalCode', col('new_address').postalCode)
+        .withColumn('state', col('new_address').state)\
+        .withColumn('postalCode', col('new_address').postalCode)\
+        .drop('new_address')
 
 
 def execute_source_operation(spark):
@@ -55,4 +57,16 @@ def execute_source_operation(spark):
 
 
 def execute_sink_operation(name_df, address_df):
-    pass
+    name_df.write.format('jdbc').options(
+        url='jdbc:mysql://localhost/sql_store',
+        driver='com.mysql.jdbc.Driver',
+        dbtable='fhir_patient_detail',
+        user='root',
+        password='test').mode('append').save()
+
+    address_df.write.format('jdbc').options(
+        url='jdbc:mysql://localhost/sql_store',
+        driver='com.mysql.jdbc.Driver',
+        dbtable='fhir_patient_address_detail',
+        user='root',
+        password='test').mode('append').save()
