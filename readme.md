@@ -9,4 +9,4 @@ Two table created in mysql: one for patient personal data other is for patient a
 ![Paient Address Table data](https://github.com/rainidhi09/FHIR-paient-data-extract/blob/master/images/Screenshot%202022-04-25%20at%2023.57.49.png "Optional title")
 
 
-![Possible data ingestion pattern](https://github.com/rainidhi09/FHIR-paient-data-extract/blob/master/images/Screenshot 2022-04-26 at 00.17.43.png "Possible data ingestion pattern")
+![Possible data ingestion pattern](https://github.com/rainidhi09/FHIR-paient-data-extract/blob/master/images/Screenshot%202022-04-26%20at%2000.17.43.png "Possible data ingestion pattern")
