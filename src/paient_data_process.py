@@ -15,10 +15,10 @@ def convert_name(array_str):
     return name
 
 
-def read_data(spark):
+def read_data(spark, path):
     return spark.read \
         .option("multiLine", True) \
-        .json("/Users/vishalrai/Documents/learning/FHIR-paient-data-extract/data/data.json") \
+        .json(path) \
         .withColumn("id", monotonically_increasing_id())
 
 
@@ -49,8 +49,8 @@ def transform_address(df):
         .drop('new_address')
 
 
-def execute_source_operation(spark):
-    df = read_data(spark)
+def execute_source_operation(spark, path):
+    df = read_data(spark, path)
     name_df = transform_name(df)
     address_df = transform_address(df)
     return name_df, address_df
